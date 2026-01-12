@@ -1,0 +1,30 @@
+{
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.0.6",
+    "@types/pg": "^8.16.0",
+    "nodemon": "^3.1.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "node-pg-migrate": "^8.0.4",
+    "pg": "^8.16.3"
+  },
+  "name": "portofolio-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon -L server.ts",
+    "build": "tsc",
+    "start": "node dist/server.ts",
+    "migrate:up": "node -r dotenv/config node_modules/.bin/node-pg-migrate up",
+    "migrate:down": "node -r dotenv/config node_modules/.bin/node-pg-migrate down"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
