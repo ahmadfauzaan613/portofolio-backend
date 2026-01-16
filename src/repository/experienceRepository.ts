@@ -28,7 +28,7 @@ export const findAll = async (
   const dataQuery = `
         SELECT id, company, role, description, location, start_date, end_date, created_at
         FROM experiences
-        ORDER BY start_date DESC
+        ORDER BY id ASC
         LIMIT $1 OFFSET $2;
     `
 
@@ -43,4 +43,45 @@ export const findAll = async (
     data: dataRes.rows,
     total: parseInt(countRes.rows[0].count),
   }
+}
+
+export const findById = async (id: number): Promise<Experience | null> => {
+  const query = `
+    SELECT id, company, role, description, location, start_date, end_date, created_at
+    FROM experiences
+    WHERE id = $1;
+  `
+  const result = await pool.query(query, [id])
+  return result.rows[0] || null
+}
+
+export const update = async (id: number, data: Partial<Experience>): Promise<Experience | null> => {
+  const query = `
+    UPDATE experiences
+    SET company = $1, role = $2, description = $3, location = $4, start_date = $5, end_date = $6
+    WHERE id = $7
+    RETURNING id, company, role, description, location, start_date, end_date, created_at;
+  `
+  const values = [
+    data.company,
+    data.role,
+    data.description,
+    data.location,
+    data.start_date,
+    data.end_date,
+    id,
+  ]
+
+  const result = await pool.query(query, values)
+  return result.rows[0] || null
+}
+
+export const remove = async (id: number): Promise<Experience | null> => {
+  const query = `
+    DELETE FROM experiences
+    WHERE id = $1
+    RETURNING id, company, role, description, location, start_date, end_date, created_at;
+  `
+  const result = await pool.query(query, [id])
+  return result.rows[0] || null
 }

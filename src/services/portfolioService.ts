@@ -53,3 +53,9 @@ export const deletePortfolio = async (id: number) => {
   }
   return await repo.remove(id)
 }
+
+export const getPortfolioById = async (id: number) => {
+  const result = await repo.findById(id)
+  if (!result) throw new Error('Portfolio not found')
+  return result
+}

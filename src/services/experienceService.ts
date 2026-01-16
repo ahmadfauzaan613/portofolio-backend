@@ -14,6 +14,25 @@ export const getAllExperiences = async (page: number, limit: number) => {
 
   const { data, total } = await experienceRepo.findAll(l, offset)
 
-  // Tinggal panggil formatter-nya
   return formatPaginationResponse(data, total, page, limit)
+}
+
+export const updateExperience = async (id: number, data: any) => {
+  const existing = await experienceRepo.findById(id)
+  if (!existing) throw new Error('Experience not found')
+
+  return await experienceRepo.update(id, data)
+}
+
+export const deleteExperience = async (id: number) => {
+  const existing = await experienceRepo.findById(id)
+  if (!existing) throw new Error('Experience not found')
+
+  return await experienceRepo.remove(id)
+}
+
+export const getExperienceById = async (id: number) => {
+  const data = await experienceRepo.findById(id)
+  if (!data) throw new Error('Experience not found')
+  return data
 }

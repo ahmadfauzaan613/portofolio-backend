@@ -1,6 +1,9 @@
 {
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",
     "@types/node": "^25.0.6",
     "@types/pg": "^8.16.0",
@@ -9,8 +12,11 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
     "node-pg-migrate": "^8.0.4",
     "pg": "^8.16.3"
@@ -23,7 +29,9 @@
     "build": "tsc",
     "start": "node dist/server.ts",
     "migrate:up": "node -r dotenv/config node_modules/.bin/node-pg-migrate up",
-    "migrate:down": "node -r dotenv/config node_modules/.bin/node-pg-migrate down"
+    "migrate:down": "node -r dotenv/config node_modules/.bin/node-pg-migrate down",
+    "seed:user": "ts-node src/seeders/userSeeder.ts",
+    "deploy:prep": "npx node-pg-migrate up && npm run seed:user"
   },
   "keywords": [],
   "author": "",

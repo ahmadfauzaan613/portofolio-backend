@@ -25,8 +25,12 @@ export const addPortfolio = async (req: Request, res: Response, next: NextFuncti
 
 export const fetchAll = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { type, page = 1, size = 10 } = req.body
-    const result = await service.getAllPortfolios(Number(page), Number(size), type)
+    const type = req.query.type as string
+    const page = parseInt(req.query.page as string) || 1
+    const size = parseInt(req.query.size as string) || 10
+
+    const result = await service.getAllPortfolios(page, size, type)
+
     return sendSuccess(res, 'Retrieved successfully', result)
   } catch (e) {
     next(e)
@@ -66,7 +70,7 @@ export const updatePortfolio = async (req: Request, res: Response, next: NextFun
     }
 
     const result = await service.updatePortfolio(Number(id), updateData)
-    res.json({ status: 'success', data: result })
+    return sendSuccess(res, 'Portfolio updated successfully', result)
   } catch (e) {
     next(e)
   }
@@ -76,6 +80,16 @@ export const remove = async (req: Request, res: Response, next: NextFunction) =>
   try {
     await service.deletePortfolio(Number(req.params.id))
     return sendSuccess(res, 'Deleted successfully')
+  } catch (e) {
+    next(e)
+  }
+}
+
+export const getById = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params
+    const result = await service.getPortfolioById(Number(id))
+    return sendSuccess(res, 'Portfolio retrieved successfully', result)
   } catch (e) {
     next(e)
   }
