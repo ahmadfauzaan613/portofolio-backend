@@ -6,6 +6,7 @@ const router = Router()
 
 router.post('/auth/login', ctrl.handleLogin)
 router.post('/auth/logout', ctrl.handleLogout)
+router.get('/auth/me', authenticate, ctrl.handleMe)
 router.put('/auth/update-password', authenticate, ctrl.handleUpdatePassword)
 
 export default router

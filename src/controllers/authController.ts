@@ -6,12 +6,15 @@ export const handleLogin = async (req: Request, res: Response, next: NextFunctio
   try {
     const { username, password } = req.body
     const { user, token } = await authService.login(username, password)
+    const isProd = process.env.NODE_ENV === 'production'
 
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      // secure: process.env.NODE_ENV === 'production',
       maxAge: 24 * 60 * 60 * 1000,
-      sameSite: 'strict',
+      // sameSite: 'strict',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
     })
 
     return sendSuccess(res, 'Login successful', { user })
@@ -41,4 +44,9 @@ export const handleUpdatePassword = async (req: Request, res: Response, next: Ne
   } catch (error: any) {
     next(error)
   }
+}
+
+export const handleMe = async (req: Request, res: Response) => {
+  const user = await authService.getMe((req as any).user.id)
+  return sendSuccess(res, 'Authorized', { user })
 }

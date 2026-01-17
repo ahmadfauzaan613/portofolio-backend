@@ -29,3 +29,11 @@ export const changePassword = async (userId: number, oldPass: string, newPass: s
 
   return await userRepo.updatePassword(userId, hashedPass)
 }
+
+export const getMe = async (userId: number) => {
+  const user = await userRepo.findById(userId)
+  if (!user) throw new Error('User not found')
+
+  const { password, ...userWithoutPass } = user
+  return userWithoutPass
+}
