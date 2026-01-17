@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { UPLOAD_PATH } from '../config/multer'
 import * as repo from '../repository/portfolioRepository'
+import { formatPaginationResponse, getPaginationData } from '../utils/paginationHelper'
 
 const deletePhysicalFile = (fileName: string) => {
   const uploadPath = process.env.UPLOAD_PATH || ''
@@ -11,9 +12,10 @@ const deletePhysicalFile = (fileName: string) => {
 
 export const createPortfolio = (data: any) => repo.create(data)
 
-export const getAllPortfolios = async (page: number, size: number, type?: string) => {
-  const offset = (page - 1) * size
-  return await repo.findAll(size, offset, type)
+export const getAllPortfolios = async (page: number, limit: number, type?: string) => {
+  const { limit: l, offset } = getPaginationData(page, limit)
+  const { data, total } = await repo.findAll(l, offset, type)
+  return formatPaginationResponse(data, total, page, limit)
 }
 
 export const updatePortfolio = async (id: number, newData: any) => {
