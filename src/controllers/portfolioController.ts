@@ -7,8 +7,9 @@ export const addPortfolio = async (req: Request, res: Response, next: NextFuncti
     const files = req.files as any
 
     const payload = {
+      title: req.body.title,
       image_banner: files?.imageBanner ? files.imageBanner[0].filename : '',
-      short_desc: req.body.shortDesc,
+      short_desc: req.body.short_desc,
       description: req.body.description,
       link: req.body.link,
       category: req.body.category,
@@ -46,7 +47,8 @@ export const updatePortfolio = async (req: Request, res: Response, next: NextFun
 
     const updateData: any = {}
 
-    if (req.body.shortDesc !== undefined) updateData.short_desc = req.body.shortDesc
+    if (req.body.title !== undefined) updateData.title = req.body.title
+    if (req.body.short_desc !== undefined) updateData.short_desc = req.body.short_desc
     if (req.body.description !== undefined) updateData.description = req.body.description
     if (req.body.category !== undefined) updateData.category = req.body.category
     if (req.body.link !== undefined) updateData.link = req.body.link
