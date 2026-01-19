@@ -12,7 +12,7 @@ const uploadFields = upload.fields([
 
 router.post('/portfolios', authenticate, uploadFields, ctrl.addPortfolio)
 router.put('/portfolios/:id', authenticate, uploadFields, ctrl.updatePortfolio)
-router.get('/portfolios/:id', authenticate, ctrl.getById)
+router.get('/portfolios/:id', ctrl.getById)
 router.get('/portfolios', ctrl.fetchAll)
 router.delete('/portfolios/:id', authenticate, ctrl.remove)
 
