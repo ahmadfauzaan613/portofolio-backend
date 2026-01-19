@@ -9,3 +9,19 @@ export interface Portfolio {
   logo: string[]
   category: string
 }
+
+export type PortfolioImageType = 'all_image' | 'logo'
+
+export interface IPortfolioImage {
+  id: number
+  portfolio_id: number
+  type: PortfolioImageType
+  filename: string
+  created_at: Date
+}
+
+export interface ICreatePortfolioImage {
+  portfolio_id: number
+  type: PortfolioImageType
+  filename: string
+}
