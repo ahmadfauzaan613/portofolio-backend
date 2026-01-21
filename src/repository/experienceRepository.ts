@@ -28,7 +28,7 @@ export const findAll = async (
   const dataQuery = `
         SELECT id, company, role, description, location, start_date, end_date, created_at
         FROM experiences
-        ORDER BY id ASC
+        ORDER BY id DESC
         LIMIT $1 OFFSET $2;
     `
 
