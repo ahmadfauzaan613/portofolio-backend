@@ -5,7 +5,7 @@ export const apiLogger = (req: Request, res: Response, next: NextFunction) => {
   const start = Date.now()
 
   res.on('finish', () => {
-    const excludedPaths = ['/api/v1/logs/cleanup', '/api/v1/logs']
+    const excludedPaths = ['/portfolio/v1/logs/cleanup', '/portfolio/v1/logs']
 
     if (excludedPaths.includes(req.originalUrl) || req.path.includes('/logs')) {
       return
