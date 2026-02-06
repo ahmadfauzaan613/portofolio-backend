@@ -5,7 +5,7 @@ import path from 'path'
 
 dotenv.config()
 
-export const UPLOAD_PATH = path.resolve(process.env.UPLOAD_PATH || './uploads')
+export const UPLOAD_PATH = path.resolve(process.env.UPLOAD_PATH || '/app/uploads')
 
 if (!fs.existsSync(UPLOAD_PATH)) {
   try {
