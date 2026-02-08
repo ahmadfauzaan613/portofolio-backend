@@ -11,7 +11,7 @@ services:
     depends_on:
       - db
     volumes:
-      - /home/ahmadfauzaan/image-project:/app/uploads
+      - /home/ahmadfauzaan/shared/assets:/app/uploads
     restart: unless-stopped
 
   db:
