@@ -34,7 +34,7 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
     export const deleteFile = async (key: string): Promise<void> => {                                                                                                                              
       const cleanKey = extractKeyFromUrl(key)                                                                                                                                                      
       if (!cleanKey) return                                                                                                                                                                        
-  
+                                                                                                                                                                                                   
       const command = new DeleteObjectCommand({
         Bucket: bucketName,
         Key: cleanKey,
