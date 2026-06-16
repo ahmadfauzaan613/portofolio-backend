@@ -18,7 +18,7 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
       originalname: string,                                                                                                                                                                        
       folder: string = 'portfolios'                                                                                                                                                                
     ): Promise<string> => {                                                                                                                                                                        
-      const uniqueName = `folder/{Date.now()}-Math.round(Math.random()*1e9){path.extname(originalname)}`                                                                                           
+      const uniqueName = `folder/${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(originalname)}`;                                                                                 
                                                                                                                                                                                                    
       const command = new PutObjectCommand({                                                                                                                                                       
         Bucket: bucketName,                                                                                                                                                                        
@@ -51,11 +51,11 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
       const cleanKey = key.startsWith('/') ? key.substring(1) : key
   
       if (endpoint === 'relative') {
-        return `/bucket/{cleanKey}`
+        return `/bucket/${cleanKey}`
       }
   
       const activeEndpoint = endpoint || process.env.MINIO_ENDPOINT || 'https://minio-api.oj3nglab.xyz'
-      return `${activeEndpoint}/{bucket}/${cleanKey}`
+      return `${activeEndpoint}/${bucket}/${cleanKey}`
     }
   
     export const extractKeyFromUrl = (urlOrKey: string): string | null => {
