@@ -42,9 +42,9 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
       await s3.send(command)
     }
   
-    export const getFullUrl = (key: string | null | undefined): string | null => {
+export const getFullUrl = (key: string | null | undefined): string | null => {
       if (!key) return null
-      if (key.startsWith('http://') || key.startsWith('https://')) return key
+      if (key.startsWith('http://') || key.startsWith('https://') || key.startsWith('/')) return key
   
       const endpoint = process.env.MINIO_PUBLIC_URL
       const bucket = process.env.MINIO_BUCKET || 'bucketwebsite'
