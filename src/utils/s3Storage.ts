@@ -55,7 +55,7 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
       }
   
       const activeEndpoint = endpoint || process.env.MINIO_ENDPOINT || 'https://minio-api.oj3nglab.xyz'
-      return `activeEndpoint/{bucket}/${cleanKey}`
+      return `${activeEndpoint}/{bucket}/${cleanKey}`
     }
   
     export const extractKeyFromUrl = (urlOrKey: string): string | null => {
