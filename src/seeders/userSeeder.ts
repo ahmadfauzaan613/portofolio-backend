@@ -11,12 +11,8 @@ const seedUser = async () => {
   }
 
   try {
-    const checkUser = await pool.query('SELECT id FROM users WHERE username = $1', [username])
-
-    if (checkUser.rows.length > 0) {
-      console.log(`⚠️ Seeder skipped: User "${username}" sudah ada.`)
-      process.exit(0)
-    }
+    console.log('🧹 Clearing existing users from database...')
+    await pool.query('DELETE FROM users')
 
     const salt = await bcrypt.genSalt(10)
     const hashedPassword = await bcrypt.hash(plainPassword, salt)

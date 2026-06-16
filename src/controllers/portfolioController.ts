@@ -2,22 +2,42 @@ import { NextFunction, Request, Response } from 'express'
 import * as service from '../services/portfolioService'
 import { sendSuccess } from '../utils/responseHelper'
 
+const parseArrayBody = (value: any): string[] | undefined => {
+  if (value === undefined || value === null) return undefined
+  if (Array.isArray(value)) return value
+  if (typeof value === 'string') {
+    if (value.trim() === '') return []
+    if (value.startsWith('[') && value.endsWith(']')) {
+      try {
+        return JSON.parse(value)
+      } catch (err) {
+        // ignore and fallback
+      }
+    }
+    return value.split(',').map(s => s.trim())
+  }
+  return undefined
+}
+
 export const addPortfolio = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const files = req.files as any
 
     const payload = {
       title: req.body.title,
-      image_banner: files?.imageBanner ? files.imageBanner[0].filename : '',
       short_desc: req.body.short_desc,
       description: req.body.description,
       link: req.body.link,
       category: req.body.category,
-      all_image: files?.allImage ? files.allImage.map((f: any) => f.filename) : [],
-      logo: files?.logo ? files.logo.map((f: any) => f.filename) : [],
     }
 
-    const result = await service.createPortfolio(payload)
+    const filePayload = {
+      imageBanner: files?.imageBanner ? files.imageBanner[0] : null,
+      allImage: files?.allImage || [],
+      logo: files?.logo || [],
+    }
+
+    const result = await service.createPortfolio(payload, filePayload)
     return sendSuccess(res, 'Portfolio created', result, 201)
   } catch (e) {
     next(e)
@@ -43,35 +63,26 @@ export const updatePortfolio = async (req: Request, res: Response, next: NextFun
     const { id } = req.params
     const files = req.files as any
 
-    const bodyKeys = Object.keys(req.body)
-
     const updateData: any = {}
-
     if (req.body.title !== undefined) updateData.title = req.body.title
     if (req.body.short_desc !== undefined) updateData.short_desc = req.body.short_desc
     if (req.body.description !== undefined) updateData.description = req.body.description
     if (req.body.category !== undefined) updateData.category = req.body.category
     if (req.body.link !== undefined) updateData.link = req.body.link
 
-    if (files?.imageBanner) {
-      updateData.image_banner = files.imageBanner[0].filename
+    const existingAllImage = parseArrayBody(req.body.existing_all_image)
+    const existingLogo = parseArrayBody(req.body.existing_logo)
+
+    const filePayload = {
+      imageBanner: files?.imageBanner ? files.imageBanner[0] : null,
+      allImage: files?.allImage || [],
+      logo: files?.logo || [],
     }
 
-    // 2. All Image
-    if (files?.allImage && files.allImage.length > 0) {
-      updateData.all_image = files.allImage.map((f: any) => f.filename)
-    } else if (bodyKeys.includes('allImage')) {
-      updateData.all_image = []
-    }
-
-    // 3. Logo
-    if (files?.logo && files.logo.length > 0) {
-      updateData.logo = files.logo.map((f: any) => f.filename)
-    } else if (bodyKeys.includes('logo')) {
-      updateData.logo = []
-    }
-
-    const result = await service.updatePortfolio(Number(id), updateData)
+    const result = await service.updatePortfolio(Number(id), updateData, filePayload, {
+      existing_all_image: existingAllImage,
+      existing_logo: existingLogo,
+    })
     return sendSuccess(res, 'Portfolio updated successfully', result)
   } catch (e) {
     next(e)

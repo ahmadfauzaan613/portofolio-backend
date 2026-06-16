@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
 import * as authService from '../services/authService'
-import { sendSuccess } from '../utils/responseHelper'
+import { sendSuccess, sendError } from '../utils/responseHelper'
 
 export const handleLogin = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -10,21 +10,24 @@ export const handleLogin = async (req: Request, res: Response, next: NextFunctio
 
     res.cookie('token', token, {
       httpOnly: true,
-      // secure: process.env.NODE_ENV === 'production',
       maxAge: 24 * 60 * 60 * 1000,
-      // sameSite: 'strict',
       secure: isProd,
       sameSite: isProd ? 'none' : 'lax',
     })
 
-    return sendSuccess(res, 'Login successful', { user })
+    return sendSuccess(res, 'Login successful', { user, token })
   } catch (error) {
     next(error)
   }
 }
 
 export const handleLogout = (req: Request, res: Response) => {
-  res.clearCookie('token')
+  const isProd = process.env.NODE_ENV === 'production'
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
+  })
   return sendSuccess(res, 'Logged out successfully')
 }
 
@@ -35,7 +38,7 @@ export const handleUpdatePassword = async (req: Request, res: Response, next: Ne
     const userId = (req as any).user.id
 
     if (!oldPassword || !newPassword) {
-      return res.status(400).json({ message: 'Both old and new password are required' })
+      return sendError(res, 'Both old and new password are required', 400)
     }
 
     await authService.changePassword(userId, oldPassword, newPassword)

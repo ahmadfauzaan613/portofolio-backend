@@ -1,7 +1,11 @@
 import dotenv from 'dotenv'
-import { Pool } from 'pg'
+import { Pool, types } from 'pg'
 
 dotenv.config()
+
+// Force the pg driver to parse PostgreSQL DATE (OID 1082) as a raw string 'YYYY-MM-DD'
+// to avoid local timezone conversions and shifting.
+types.setTypeParser(1082, (val: string) => val)
 
 const pool = new Pool({
   user: process.env.POSTGRES_USER,

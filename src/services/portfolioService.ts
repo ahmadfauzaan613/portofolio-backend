@@ -1,17 +1,10 @@
-import fs from 'fs'
-import path from 'path'
 import pool from '../config/database'
-import { UPLOAD_PATH } from '../config/multer'
 import { PortfolioImageType } from '../models/Portfolio'
 import * as imageRepo from '../repository/portfolioImageRepository'
 import * as repo from '../repository/portfolioRepository'
 import { formatPaginationResponse, getPaginationData } from '../utils/paginationHelper'
-
-const deletePhysicalFile = (fileName: string) => {
-  const uploadPath = process.env.UPLOAD_PATH || ''
-  const fullPath = path.join(uploadPath, fileName)
-  if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath)
-}
+import { NotFoundError, BadRequestError } from '../utils/exceptions'
+import { uploadFile, deleteFile, getFullUrl, extractKeyFromUrl } from '../utils/s3Storage'
 
 const resolveImages = async (
   portfolioId: number,
@@ -19,65 +12,56 @@ const resolveImages = async (
   type: 'all_image' | 'logo'
 ): Promise<string[]> => {
   const images = await imageRepo.findByPortfolioAndType(portfolioId, type)
+  const list = images.length > 0 ? images.map(img => img.filename) : (Array.isArray(fallback) ? fallback : [])
+  return list.map(img => getFullUrl(img) || '')
+}
 
-  if (images.length > 0) {
-    return images.map(img => img.filename)
+export const createPortfolio = async (
+  data: {
+    title: string
+    short_desc: string
+    description: string
+    link?: string
+    category: string
+  },
+  files: {
+    imageBanner?: any
+    allImage?: any[]
+    logo?: any[]
   }
-
-  return Array.isArray(fallback) ? fallback : []
-}
-
-const replaceImagesTx = async (
-  client: any,
-  portfolioId: number,
-  type: PortfolioImageType,
-  newFiles: string[] | undefined,
-  filesToDelete: string[]
 ) => {
-  if (!Array.isArray(newFiles) || newFiles.length === 0) return
+  if (!data.title) throw new BadRequestError('Title is required')
+  if (!data.short_desc) throw new BadRequestError('Short description is required')
+  if (!data.description) throw new BadRequestError('Description is required')
+  if (!data.category) throw new BadRequestError('Category is required')
 
-  // ambil image lama
-  const existingImages = await imageRepo.findByPortfolioAndType(portfolioId, type)
-
-  // tandai file lama untuk dihapus SETELAH commit
-  existingImages.forEach(img => filesToDelete.push(img.filename))
-
-  // hapus DB record lama
-  await imageRepo.deleteByPortfolioAndType(portfolioId, type)
-
-  // insert DB record baru
-  await imageRepo.insertMany(
-    newFiles.map(filename => ({
-      portfolio_id: portfolioId,
-      type,
-      filename,
-    }))
-  )
-}
-
-export const createPortfolio = async (data: any) => {
   const client = await pool.connect()
 
   try {
     await client.query('BEGIN')
 
-    // =========================
-    // 1. Insert portfolio (metadata)
-    // =========================
+    let bannerKey = ''
+    if (files.imageBanner) {
+      bannerKey = await uploadFile(files.imageBanner.buffer, files.imageBanner.originalname, 'portfolios/banners')
+    }
+
     const portfolio = await repo.create({
       ...data,
-      all_image: [], // legacy JSON dikosongkan
+      image_banner: bannerKey,
+      all_image: [],
       logo: [],
     })
 
     const portfolioId = portfolio.id
 
-    // =========================
-    // 2. Insert all_image → table baru
-    // =========================
-    if (Array.isArray(data.all_image) && data.all_image.length > 0) {
+    if (files.allImage && files.allImage.length > 0) {
+      const filenames: string[] = []
+      for (const file of files.allImage) {
+        const key = await uploadFile(file.buffer, file.originalname, 'portfolios/images')
+        filenames.push(key)
+      }
       await imageRepo.insertMany(
-        data.all_image.map((filename: string) => ({
+        filenames.map(filename => ({
           portfolio_id: portfolioId,
           type: 'all_image',
           filename,
@@ -85,12 +69,14 @@ export const createPortfolio = async (data: any) => {
       )
     }
 
-    // =========================
-    // 3. Insert logo → table baru
-    // =========================
-    if (Array.isArray(data.logo) && data.logo.length > 0) {
+    if (files.logo && files.logo.length > 0) {
+      const filenames: string[] = []
+      for (const file of files.logo) {
+        const key = await uploadFile(file.buffer, file.originalname, 'portfolios/logos')
+        filenames.push(key)
+      }
       await imageRepo.insertMany(
-        data.logo.map((filename: string) => ({
+        filenames.map(filename => ({
           portfolio_id: portfolioId,
           type: 'logo',
           filename,
@@ -115,6 +101,7 @@ export const getAllPortfolios = async (page: number, limit: number, type?: strin
   const enriched = await Promise.all(
     data.map(async (item: any) => ({
       ...item,
+      image_banner: getFullUrl(item.image_banner),
       all_image: await resolveImages(item.id, item.all_image, 'all_image'),
       logo: await resolveImages(item.id, item.logo, 'logo'),
     }))
@@ -123,66 +110,121 @@ export const getAllPortfolios = async (page: number, limit: number, type?: strin
   return formatPaginationResponse(enriched, total, page, limit)
 }
 
-export const updatePortfolio = async (id: number, newData: any) => {
+export const updatePortfolio = async (
+  id: number,
+  newData: any,
+  files: {
+    imageBanner?: any
+    allImage?: any[]
+    logo?: any[]
+  },
+  options?: {
+    existing_all_image?: string[]
+    existing_logo?: string[]
+  }
+) => {
   const client = await pool.connect()
-
-  // simpan file lama yang AKAN dihapus (setelah commit)
-  const filesToDelete: string[] = []
 
   try {
     await client.query('BEGIN')
 
     const existing = await repo.findById(id)
-    if (!existing) throw new Error('Portfolio not found')
+    if (!existing) throw new NotFoundError('Portfolio not found')
 
     const updatePayload: any = {}
 
-    // =========================
-    // 1. Metadata
-    // =========================
     if (newData.title !== undefined) updatePayload.title = newData.title
     if (newData.short_desc !== undefined) updatePayload.short_desc = newData.short_desc
     if (newData.description !== undefined) updatePayload.description = newData.description
     if (newData.link !== undefined) updatePayload.link = newData.link
     if (newData.category !== undefined) updatePayload.category = newData.category
 
-    // =========================
-    // 2. image_banner (replace)
-    // =========================
-    if (newData.image_banner && newData.image_banner !== existing.image_banner) {
+    if (files.imageBanner) {
       if (existing.image_banner) {
-        filesToDelete.push(existing.image_banner)
+        await deleteFile(existing.image_banner).catch(err => console.error(`Failed to delete banner:`, err))
       }
-      updatePayload.image_banner = newData.image_banner
+      updatePayload.image_banner = await uploadFile(
+        files.imageBanner.buffer,
+        files.imageBanner.originalname,
+        'portfolios/banners'
+      )
     }
 
-    // =========================
-    // 3. all_image → table baru
-    // =========================
-    await replaceImagesTx(client, id, 'all_image', newData.all_image, filesToDelete)
+    if (options?.existing_all_image !== undefined || (files.allImage && files.allImage.length > 0)) {
+      const keptKeys = (options?.existing_all_image || [])
+        .map(url => extractKeyFromUrl(url))
+        .filter(Boolean) as string[]
+      
+      const currentImages = await imageRepo.findByPortfolioAndType(id, 'all_image')
+      const currentKeys = currentImages.map(img => img.filename)
 
-    // =========================
-    // 4. logo → table baru
-    // =========================
-    await replaceImagesTx(client, id, 'logo', newData.logo, filesToDelete)
+      await imageRepo.deleteByPortfolioAndType(id, 'all_image')
 
-    // =========================
-    // 5. Update portfolio metadata
-    // =========================
+      const uploadedKeys: string[] = []
+      if (files.allImage && files.allImage.length > 0) {
+        for (const file of files.allImage) {
+          const key = await uploadFile(file.buffer, file.originalname, 'portfolios/images')
+          uploadedKeys.push(key)
+        }
+      }
+
+      const finalKeys = [...keptKeys, ...uploadedKeys]
+      if (finalKeys.length > 0) {
+        await imageRepo.insertMany(
+          finalKeys.map(filename => ({
+            portfolio_id: id,
+            type: 'all_image',
+            filename,
+          }))
+        )
+      }
+
+      const keysToDelete = currentKeys.filter(k => !keptKeys.includes(k))
+      for (const key of keysToDelete) {
+        await deleteFile(key).catch(err => console.error(`Failed to delete portfolio image:`, err))
+      }
+    }
+
+    if (options?.existing_logo !== undefined || (files.logo && files.logo.length > 0)) {
+      const keptKeys = (options?.existing_logo || [])
+        .map(url => extractKeyFromUrl(url))
+        .filter(Boolean) as string[]
+      
+      const currentLogos = await imageRepo.findByPortfolioAndType(id, 'logo')
+      const currentKeys = currentLogos.map(img => img.filename)
+
+      await imageRepo.deleteByPortfolioAndType(id, 'logo')
+
+      const uploadedKeys: string[] = []
+      if (files.logo && files.logo.length > 0) {
+        for (const file of files.logo) {
+          const key = await uploadFile(file.buffer, file.originalname, 'portfolios/logos')
+          uploadedKeys.push(key)
+        }
+      }
+
+      const finalKeys = [...keptKeys, ...uploadedKeys]
+      if (finalKeys.length > 0) {
+        await imageRepo.insertMany(
+          finalKeys.map(filename => ({
+            portfolio_id: id,
+            type: 'logo',
+            filename,
+          }))
+        )
+      }
+
+      const keysToDelete = currentKeys.filter(k => !keptKeys.includes(k))
+      for (const key of keysToDelete) {
+        await deleteFile(key).catch(err => console.error(`Failed to delete logo:`, err))
+      }
+    }
+
     if (Object.keys(updatePayload).length > 0) {
       await repo.update(id, updatePayload)
     }
 
     await client.query('COMMIT')
-
-    // =========================
-    // 6. Hapus file fisik SETELAH commit
-    // =========================
-    filesToDelete.forEach(file => {
-      const fullPath = path.join(UPLOAD_PATH, file)
-      if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath)
-    })
-
     return await getPortfolioById(id)
   } catch (error) {
     await client.query('ROLLBACK')
@@ -196,38 +238,29 @@ export const deletePortfolio = async (id: number) => {
   const existing = await repo.findById(id)
   if (!existing) return
 
-  // =========================
-  // 1. Hapus image_banner
-  // =========================
   if (existing.image_banner) {
-    deletePhysicalFile(existing.image_banner)
+    await deleteFile(existing.image_banner).catch(err => console.error(`Failed to delete banner on cascade:`, err))
   }
 
-  // =========================
-  // 2. Ambil semua image dari table baru
-  // =========================
   const allImages = [
     ...(await imageRepo.findByPortfolioAndType(id, 'all_image')),
     ...(await imageRepo.findByPortfolioAndType(id, 'logo')),
   ]
 
-  // =========================
-  // 3. Hapus file fisik
-  // =========================
-  allImages.forEach(img => deletePhysicalFile(img.filename))
+  for (const img of allImages) {
+    await deleteFile(img.filename).catch(err => console.error(`Failed to delete S3 file on cascade:`, err))
+  }
 
-  // =========================
-  // 4. Hapus portfolio (CASCADE DB)
-  // =========================
   await repo.remove(id)
 }
 
 export const getPortfolioById = async (id: number) => {
   const result = await repo.findById(id)
-  if (!result) throw new Error('Portfolio not found')
+  if (!result) throw new NotFoundError('Portfolio not found')
 
   return {
     ...result,
+    image_banner: getFullUrl(result.image_banner),
     all_image: await resolveImages(id, result.all_image, 'all_image'),
     logo: await resolveImages(id, result.logo, 'logo'),
   }

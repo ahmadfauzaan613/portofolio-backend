@@ -23,11 +23,16 @@ export const sendError = (
   res: Response,
   message: string,
   statusCode: number = HttpCode.INTERNAL_SERVER_ERROR,
-  error: any = null
+  errors: any = null
 ) => {
-  return res.status(statusCode).json({
+  const responseBody: any = {
     status: 'error',
     message,
-    error,
-  })
+  }
+
+  if (errors !== null && errors !== undefined) {
+    responseBody.errors = errors
+  }
+
+  return res.status(statusCode).json(responseBody)
 }

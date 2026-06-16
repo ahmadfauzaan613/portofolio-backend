@@ -6,6 +6,7 @@ const router = Router()
 
 router.post('/experiences', authenticate, experienceController.addExperience)
 router.get('/experiences', experienceController.listExperiences)
+router.get('/experiences/:id', experienceController.handleGetExperienceById)
 router.put('/experiences/:id', authenticate, experienceController.handleUpdateExperience)
 router.delete('/experiences/:id', authenticate, experienceController.handleDeleteExperience)
 

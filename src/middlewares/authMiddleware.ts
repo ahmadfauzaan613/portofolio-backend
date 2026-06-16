@@ -1,12 +1,17 @@
 import { NextFunction, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
-import { sendError } from '../utils/responseHelper'
+import { UnauthorizedError } from '../utils/exceptions'
 
 export const authenticate = (req: Request, res: Response, next: NextFunction) => {
-  const token = req.cookies.token
+  const authHeader = req.headers.authorization
+  let token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null
 
   if (!token) {
-    return sendError(res, 'Unauthorized: No session cookie found', 401)
+    token = req.cookies?.token || null
+  }
+
+  if (!token) {
+    throw new UnauthorizedError('Unauthorized: No token provided')
   }
 
   try {
@@ -15,6 +20,6 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
     ;(req as any).user = decoded
     next()
   } catch (error) {
-    return sendError(res, 'Invalid or expired session', 401)
+    throw new UnauthorizedError('Unauthorized: Invalid or expired token')
   }
 }
